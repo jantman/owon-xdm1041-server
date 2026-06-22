@@ -31,6 +31,7 @@ def _unquote(raw: str) -> str:
         token = token[1:-1]
     return token
 
+
 # --- Common / system commands ---
 IDENTIFY = "*IDN?"
 REMOTE = "SYST:REM"
