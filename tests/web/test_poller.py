@@ -65,3 +65,31 @@ async def test_poll_loop_survives_device_errors() -> None:
         # Despite the first poll raising, the loop continues and a reading arrives.
         reading = await asyncio.wait_for(anext(sub), 1.0)
         assert reading.value == 1.23
+
+
+class _GarbageThenGoodDriver(Driver):
+    """Raises a non-DeviceError (e.g. a parse error) first, then succeeds.
+
+    Models the meter powering on mid-stream: the first line off the serial bus is
+    garbage, so read_measurement raises ValueError (bad float / unknown function)
+    rather than DeviceError. The loop must survive this and recover.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(DeviceManager(MockTransport()))
+        self.calls = 0
+
+    async def read_measurement(self) -> Measurement:
+        self.calls += 1
+        if self.calls == 1:
+            raise ValueError("could not convert string to float: 'OW'")
+        return Measurement(value=4.56, function=Function.VOLT_DC, unit="V")
+
+
+async def test_poll_loop_survives_non_device_errors() -> None:
+    # Regression: a malformed reading on meter power-on used to kill the loop, so
+    # the dashboard stayed "Live" but never displayed a reading and never recovered.
+    poller = Poller(_GarbageThenGoodDriver(), interval=0.001, clock=lambda: 1.0)
+    async with poller.subscribe() as sub:
+        reading = await asyncio.wait_for(anext(sub), 1.0)
+        assert reading.value == 4.56

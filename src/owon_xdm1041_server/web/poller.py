@@ -19,7 +19,6 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 from ..device.driver import Driver
-from ..device.manager import DeviceError
 from ..models import Reading
 from .broadcast import Broadcaster, Subscription
 
@@ -88,6 +87,11 @@ class Poller:
         while True:
             try:
                 await self.poll_once()
-            except DeviceError:
+            except Exception:
+                # A transient device hiccup or a malformed line (e.g. garbage on
+                # the serial bus while the meter powers on) must not tear down the
+                # loop: log and retry, or live clients would silently go dark and
+                # never recover. CancelledError is BaseException, so _stop() still
+                # cancels cleanly through this handler.
                 logger.warning("Poll failed; continuing", exc_info=True)
             await asyncio.sleep(self._interval)
