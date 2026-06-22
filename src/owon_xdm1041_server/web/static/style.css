@@ -32,6 +32,18 @@ nav a:hover { background: #2d333b; }
 
 main { max-width: 880px; margin: 0 auto; padding: 1.5rem 1.25rem; }
 
+footer {
+  max-width: 880px;
+  margin: 2rem auto 1rem;
+  padding: 1rem 1.25rem 0;
+  border-top: 1px solid #2d333b;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+footer a { color: var(--muted); }
+footer a:hover { color: var(--fg); }
+
 .muted { color: var(--muted); }
 
 /* Dashboard readout */

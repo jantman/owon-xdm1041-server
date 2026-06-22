@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}SCPI — XDM1041{% endblock %}
+{% block content %}
+<h1>SCPI</h1>
+<p class="muted">
+  This server exposes the meter on the network as a raw-socket SCPI instrument, so
+  tools like <code>pyvisa</code>, NI-VISA, and sigrok can drive the XDM1041 over TCP.
+  The SCPI socket, the web UI, and the live poller all share one arbitrated
+  connection to the meter, so multiple clients can connect at once — commands are
+  serialised, never interleaved mid-transaction.
+</p>
+
+<h2>Connection</h2>
+<div class="state">
+  <dl>
+    <dt>VISA resource</dt><dd><code>{{ resource }}</code></dd>
+    <dt>Protocol</dt><dd>Raw TCP socket, ASCII, newline (<code>\n</code>) terminated</dd>
+    <dt>Port</dt><dd><code>{{ scpi_port }}</code> <span class="muted">(default 5025; set <code>OWON_SCPI_PORT</code> to change)</span></dd>
+    <dt>Bind address</dt><dd><code>{{ scpi_host }}</code></dd>
+  </dl>
+</div>
+<p class="params">
+  <strong>Query vs. write:</strong> a line containing <code>?</code> is treated as a
+  query and its reply is written back (newline-terminated); any other line is a write
+  with no reply. This matches how pyvisa distinguishes <code>query()</code> from
+  <code>write()</code>. The front panel stays usable while remote commands work.
+</p>
+
+<h3>Connect with pyvisa</h3>
+{% raw %}<pre>import pyvisa
+rm = pyvisa.ResourceManager()
+{% endraw %}dmm = rm.open_resource("{{ resource }}", read_termination="\n", write_termination="\n"){% raw %}
+print(dmm.query("*IDN?"))      # identify
+print(dmm.query("MEAS1?"))     # current reading (unitless float)
+dmm.write("CONF:VOLT:DC")      # switch to DC volts</pre>{% endraw %}
+
+<h2>XDM1041 commands</h2>
+<p class="muted">
+  The command set below is what this meter understands (reverse-engineered from
+  <a href="https://github.com/TheHWcave/OWON-XDM1041" rel="nofollow noreferrer noopener" target="_blank">TheHWcave/OWON-XDM1041</a>).
+  Send any of these verbatim over the socket.
+</p>
+
+<h3>Queries (return a value)</h3>
+<table class="api">
+  <tr><td><code>*IDN?</code></td><td>Identification string</td></tr>
+  <tr><td><code>MEAS1?</code></td><td>Current reading as a bare float — <strong>no unit</strong>; derive it from the function</td></tr>
+  <tr><td><code>FUNC1?</code></td><td>Active function, wrapped in literal double-quotes (e.g. <code>"VOLT AC"</code>)</td></tr>
+  <tr><td><code>RATE?</code></td><td>Measurement rate: <code>S</code>, <code>M</code>, or <code>F</code></td></tr>
+  <tr><td><code>AUTO?</code></td><td>Auto-range enabled (<code>1</code>/<code>0</code>)</td></tr>
+  <tr><td><code>RANGE?</code></td><td>Current range string. <span class="muted">Not answered in DIOD/CONT/TEMP modes.</span></td></tr>
+</table>
+
+<h3>Function select (writes)</h3>
+<table class="api">
+  <tr><td><code>CONF:VOLT:DC</code></td><td>DC voltage (V)</td></tr>
+  <tr><td><code>CONF:VOLT:AC</code></td><td>AC voltage (V)</td></tr>
+  <tr><td><code>CONF:CURR:DC</code></td><td>DC current (A)</td></tr>
+  <tr><td><code>CONF:CURR:AC</code></td><td>AC current (A)</td></tr>
+  <tr><td><code>CONF:RES</code></td><td>Resistance (Ω)</td></tr>
+  <tr><td><code>CONF:CAP</code></td><td>Capacitance (F)</td></tr>
+  <tr><td><code>CONF:FREQ</code></td><td>Frequency (Hz)</td></tr>
+  <tr><td><code>CONF:PER</code></td><td>Period (s)</td></tr>
+  <tr><td><code>CONF:DIOD</code></td><td>Diode (V)</td></tr>
+  <tr><td><code>CONF:CONT</code></td><td>Continuity (Ω)</td></tr>
+  <tr><td><code>CONF:TEMP:RTD <em>TYPE</em></code></td><td>Temperature (°C); <em>TYPE</em> is <code>KITS90</code> (K-type) or <code>PT100</code></td></tr>
+</table>
+
+<h3>Other writes</h3>
+<table class="api">
+  <tr><td><code>RATE <em>R</em></code></td><td>Set rate; <em>R</em> is <code>S</code> (slow), <code>M</code> (medium), or <code>F</code> (fast)</td></tr>
+  <tr><td><code>AUTO</code></td><td>Enable auto-ranging</td></tr>
+</table>
+
+<p class="note muted">
+  Note: <code>MEAS1?</code> returns an unformatted float with no unit (the unit follows
+  from the active function — see the <a href="/api">API</a> page's
+  <code>unit</code> field), and <code>FUNC1?</code> wraps its answer in double-quotes.
+  Prefer the <a href="/api">HTTP API</a> if you want unit-tagged, self-describing readings.
+</p>
+{% endblock %}

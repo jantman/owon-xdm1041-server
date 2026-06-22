@@ -21,8 +21,19 @@ from .recorder import Recorder
 from .views import STATIC_DIR, html_router
 
 
-def create_app(driver: Driver, poller: Poller, database: Database | None = None) -> FastAPI:
-    """Build the web application around an existing driver and poller."""
+def create_app(
+    driver: Driver,
+    poller: Poller,
+    database: Database | None = None,
+    *,
+    scpi_host: str = "0.0.0.0",
+    scpi_port: int = 5025,
+) -> FastAPI:
+    """Build the web application around an existing driver and poller.
+
+    ``scpi_host``/``scpi_port`` are surfaced (read-only) on the SCPI docs page so
+    it can show the real connection details for the raw SCPI socket.
+    """
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -43,6 +54,8 @@ def create_app(driver: Driver, poller: Poller, database: Database | None = None)
     app.state.driver = driver
     app.state.poller = poller
     app.state.db = database
+    app.state.scpi_host = scpi_host
+    app.state.scpi_port = scpi_port
     app.include_router(router)
     app.include_router(html_router)
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

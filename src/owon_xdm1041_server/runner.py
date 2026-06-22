@@ -42,7 +42,9 @@ def build_components(settings: Settings) -> Components:
     manager, driver = build_driver(settings)
     poller = Poller(driver, interval=settings.poll_interval)
     database = Database(settings.database_path)
-    app = create_app(driver, poller, database)
+    app = create_app(
+        driver, poller, database, scpi_host=settings.scpi_host, scpi_port=settings.scpi_port
+    )
     scpi = ScpiServer(manager, host=settings.scpi_host, port=settings.scpi_port)
     return Components(
         manager=manager, driver=driver, poller=poller, database=database, app=app, scpi=scpi

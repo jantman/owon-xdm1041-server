@@ -90,3 +90,17 @@ async def history_page(request: Request) -> HTMLResponse:
 @html_router.get("/api", response_class=HTMLResponse)
 async def api_docs_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "api.html")
+
+
+@html_router.get("/scpi", response_class=HTMLResponse)
+async def scpi_docs_page(request: Request) -> HTMLResponse:
+    port = request.app.state.scpi_port
+    # Prefer the host the browser actually used (the SCPI socket is on the same
+    # machine); fall back to the configured bind address.
+    host = request.url.hostname or request.app.state.scpi_host
+    context = {
+        "scpi_host": request.app.state.scpi_host,
+        "scpi_port": port,
+        "resource": f"TCPIP::{host}::{port}::SOCKET",
+    }
+    return templates.TemplateResponse(request, "scpi.html", context)

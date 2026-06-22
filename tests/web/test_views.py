@@ -86,6 +86,38 @@ def test_openapi_schema_available(client: TestClient) -> None:
     assert "/api/measurement/smoothed" in schema["paths"]
 
 
+def test_scpi_docs_page(client: TestClient) -> None:
+    resp = client.get("/scpi")
+    assert resp.status_code == 200
+    # Connection details and the XDM1041-specific command vocabulary.
+    assert "TCPIP::" in resp.text
+    assert "5025" in resp.text  # default SCPI port
+    assert "MEAS1?" in resp.text
+    assert "CONF:VOLT:DC" in resp.text
+
+
+def test_scpi_page_reflects_configured_port() -> None:
+    _, driver = build_driver(Settings(use_mock=True))  # type: ignore[call-arg]
+    poller = Poller(driver, interval=0.01)
+    app = create_app(driver, poller, scpi_port=5999)
+    with TestClient(app) as client:
+        resp = client.get("/scpi")
+        assert "5999" in resp.text
+        assert "::5999::SOCKET" in resp.text
+
+
+def test_nav_links_to_scpi_docs(client: TestClient) -> None:
+    assert 'href="/scpi"' in client.get("/").text
+
+
+def test_footer_on_every_page(client: TestClient) -> None:
+    for path in ("/", "/control", "/history", "/api", "/scpi"):
+        body = client.get(path).text
+        assert "2026 Jason Antman" in body
+        assert "github.com/jantman/owon-xdm1041-server" in body
+        assert "MIT licensed" in body
+
+
 def test_static_assets_served(client: TestClient) -> None:
     assert client.get("/static/style.css").status_code == 200
     assert client.get("/static/dashboard.js").status_code == 200
