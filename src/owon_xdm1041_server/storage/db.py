@@ -127,11 +127,10 @@ class Database:
         )
         async with self._db.execute(query, params) as cursor:
             row = await cursor.fetchone()
-        count = int(row["n"]) if row is not None else 0
-        if count == 0:
+        if row is None or row["n"] == 0:
             return Aggregate(count=0, mean=None, min=None, max=None, first_ts=None, last_ts=None)
         return Aggregate(
-            count=count,
+            count=int(row["n"]),
             mean=row["mean"],
             min=row["lo"],
             max=row["hi"],
