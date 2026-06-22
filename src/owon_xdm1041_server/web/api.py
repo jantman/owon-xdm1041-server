@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from ..device.commands import Function, Rate
 from ..device.driver import Driver
+from ..storage.db import Database
 from .poller import Poller
 
 router = APIRouter()
@@ -69,9 +70,11 @@ def get_driver(request: Request) -> Driver:
     return driver
 
 
-def get_poller(request: Request) -> Poller:
-    poller: Poller = request.app.state.poller
-    return poller
+def get_database(request: Request) -> Database:
+    database: Database | None = request.app.state.db
+    if database is None:
+        raise HTTPException(status_code=503, detail="Persistence is disabled")
+    return database
 
 
 def _parse_function(name: str) -> Function:
@@ -140,6 +143,25 @@ async def enable_auto_range(request: Request) -> StateOut:
     driver = get_driver(request)
     await driver.enable_auto_range()
     return await _read_state(driver)
+
+
+@router.get("/api/history")
+async def history(
+    request: Request,
+    since: float | None = None,
+    until: float | None = None,
+    function: str | None = None,
+    limit: int = 1000,
+) -> list[MeasurementOut]:
+    database = get_database(request)
+    function_value = _parse_function(function).value if function is not None else None
+    readings = await database.history(
+        since=since, until=until, function=function_value, limit=limit
+    )
+    return [
+        MeasurementOut(timestamp=r.timestamp, function=r.function, value=r.value, unit=r.unit)
+        for r in readings
+    ]
 
 
 @router.websocket("/ws/live")
