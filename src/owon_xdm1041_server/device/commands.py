@@ -4,7 +4,8 @@ Command strings and semantics are taken from the reverse-engineered reference at
 https://github.com/TheHWcave/OWON-XDM1041 (SCPI/XDM1041-SCPI.pdf). Notable quirks
 encoded here or relied upon elsewhere:
 
-- ``FUNC1?`` returns the active function as a bare string (e.g. ``VOLT AC``).
+- ``FUNC1?`` returns the active function wrapped in literal double-quotes
+  (e.g. ``"VOLT AC"``); :func:`_unquote` peels these off before parsing.
 - ``MEAS1?`` returns the value as an unformatted float with **no unit**, so we
   derive the unit from the function ourselves (the ``*:SHOW?`` variants embed
   non-UTF-8 unit symbols and are avoided).
@@ -16,6 +17,19 @@ encoded here or relied upon elsewhere:
 from __future__ import annotations
 
 from enum import Enum
+
+
+def _unquote(raw: str) -> str:
+    """Strip whitespace and any surrounding double-quotes from a response.
+
+    The meter wraps string query responses in literal double-quotes (e.g.
+    ``FUNC1?`` answers ``"VOLT AC"``, not a bare ``VOLT AC``), so we peel those
+    off before parsing.
+    """
+    token = raw.strip()
+    if len(token) >= 2 and token[0] == '"' and token[-1] == '"':
+        token = token[1:-1]
+    return token
 
 # --- Common / system commands ---
 IDENTIFY = "*IDN?"
@@ -55,7 +69,7 @@ class Function(Enum):
         Normalises case and internal whitespace so minor formatting differences
         from the meter don't break parsing.
         """
-        normalised = " ".join(raw.strip().upper().split())
+        normalised = " ".join(_unquote(raw).upper().split())
         for member in cls:
             if member.value == normalised:
                 return member
@@ -71,7 +85,7 @@ class Rate(Enum):
 
     @classmethod
     def from_device(cls, raw: str) -> Rate:
-        token = raw.strip().upper()
+        token = _unquote(raw).upper()
         for member in cls:
             if member.value == token:
                 return member

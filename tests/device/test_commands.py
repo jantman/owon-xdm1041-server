@@ -13,7 +13,10 @@ from owon_xdm1041_server.device.commands import Function, Rate
     [
         ("VOLT", Function.VOLT_DC),
         ("VOLT AC", Function.VOLT_AC),
+        ('"VOLT AC"', Function.VOLT_AC),  # meter wraps responses in quotes
+        ('"VOLT"', Function.VOLT_DC),
         ("  volt   ac ", Function.VOLT_AC),  # case + whitespace tolerant
+        ('  "RES" ', Function.RESISTANCE),  # quotes + surrounding whitespace
         ("RES", Function.RESISTANCE),
         ("TEMP", Function.TEMPERATURE),
     ],
@@ -30,6 +33,7 @@ def test_function_from_device_unknown() -> None:
 def test_rate_from_device() -> None:
     assert Rate.from_device("s") is Rate.SLOW
     assert Rate.from_device("M") is Rate.MEDIUM
+    assert Rate.from_device('"F"') is Rate.FAST  # meter wraps responses in quotes
     with pytest.raises(ValueError, match="Unknown XDM1041 rate"):
         Rate.from_device("X")
 

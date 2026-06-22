@@ -52,9 +52,10 @@ async def test_measure_is_numeric_and_function_dependent(opened: MockTransport) 
 
 
 async def test_function_and_conf(opened: MockTransport) -> None:
-    assert await _q(opened, "FUNC1?") == "VOLT"
+    # Real hardware wraps the function name in literal double-quotes.
+    assert await _q(opened, "FUNC1?") == '"VOLT"'
     await opened.transact("CONF:RES", expect_response=False, timeout=1.0)
-    assert await _q(opened, "FUNC1?") == "RES"
+    assert await _q(opened, "FUNC1?") == '"RES"'
     assert opened.function is Function.RESISTANCE
 
 

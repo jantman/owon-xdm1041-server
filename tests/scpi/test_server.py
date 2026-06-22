@@ -43,7 +43,8 @@ async def test_write_then_query_over_one_connection(server: ScpiServer) -> None:
     writer.write(b"FUNC1?\n")  # a query: should reflect the write
     await writer.drain()
     line = await asyncio.wait_for(reader.readline(), timeout=2.0)
-    assert line.decode("ascii").strip() == "RES"
+    # The proxy is transparent: the meter quotes the function name.
+    assert line.decode("ascii").strip() == '"RES"'
     writer.close()
     await writer.wait_closed()
 
@@ -55,7 +56,7 @@ async def test_multiple_clients(server: ScpiServer) -> None:
         _round_trip(server.port, "RATE?"),
     )
     assert results[0].startswith("OWON,XDM1041")
-    assert results[1] == "VOLT"
+    assert results[1] == '"VOLT"'  # transparent proxy: meter quotes the function
     assert results[2] == "M"
 
 

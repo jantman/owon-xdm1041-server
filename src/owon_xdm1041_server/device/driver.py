@@ -80,7 +80,7 @@ class Driver:
         if function in commands.NO_RANGE_QUERY:
             return None
         try:
-            return await self._manager.query(commands.RANGE_QUERY)
+            return commands._unquote(await self._manager.query(commands.RANGE_QUERY))
         except DeviceError:
             # Some firmware simply stays silent rather than erroring; treat as unknown.
             return None

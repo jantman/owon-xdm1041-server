@@ -23,7 +23,8 @@ async def test_start_puts_meter_in_local_mode() -> None:
 async def test_query_and_write(driver_manager: DeviceManager) -> None:
     assert await driver_manager.query("*IDN?") == "OWON,XDM1041,MOCK0001,V1.2.0,3"
     await driver_manager.write("CONF:RES")
-    assert await driver_manager.query("FUNC1?") == "RES"
+    # The manager is a transparent transport: the meter quotes the function name.
+    assert await driver_manager.query("FUNC1?") == '"RES"'
 
 
 async def test_failed_transaction_raises_and_drops_connection() -> None:

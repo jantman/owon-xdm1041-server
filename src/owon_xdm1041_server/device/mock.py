@@ -120,7 +120,8 @@ class MockTransport(Transport):
         if upper == "MEAS2?":
             return "NONe"
         if upper in ("FUNC1?", "FUNC?"):
-            return self.function.value
+            # Real hardware wraps the function name in literal double-quotes.
+            return f'"{self.function.value}"'
         if upper == "FUNC2?":
             return "NONe"
         if upper == "RATE?":
