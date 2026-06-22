@@ -63,6 +63,47 @@ async def test_history_limit_keeps_most_recent(db: Database) -> None:
     assert [r.timestamp for r in rows] == [8.0, 9.0, 10.0]
 
 
+async def test_aggregate_empty_window(db: Database) -> None:
+    agg = await db.aggregate(since=10.0)
+    assert agg.count == 0
+    assert agg.mean is None
+    assert agg.min is None and agg.max is None
+
+
+async def test_aggregate_single_row(db: Database) -> None:
+    await db.insert_reading(_r(1.0, value=4.0))
+    agg = await db.aggregate(since=0.0)
+    assert agg.count == 1
+    assert agg.mean == 4.0
+    assert agg.min == 4.0 and agg.max == 4.0
+
+
+async def test_aggregate_multi_row_stats(db: Database) -> None:
+    for ts, value in ((1.0, 2.0), (2.0, 4.0), (3.0, 6.0)):
+        await db.insert_reading(_r(ts, value=value))
+    agg = await db.aggregate(since=0.0)
+    assert agg.count == 3
+    assert agg.mean == 4.0
+    assert agg.min == 2.0 and agg.max == 6.0
+    assert agg.first_ts == 1.0 and agg.last_ts == 3.0
+
+
+async def test_aggregate_time_and_function_filters(db: Database) -> None:
+    await db.insert_reading(_r(1.0, function="VOLT", value=1.0))
+    await db.insert_reading(_r(2.0, function="VOLT", value=3.0))
+    await db.insert_reading(_r(3.0, function="RES", value=100.0, unit="Ω"))
+    # Time window excludes the first VOLT row.
+    agg = await db.aggregate(since=1.5, function="VOLT")
+    assert agg.count == 1
+    assert agg.mean == 3.0
+    # `until` upper-bounds the window, excluding the later VOLT row.
+    capped = await db.aggregate(until=1.5, function="VOLT")
+    assert capped.count == 1 and capped.mean == 1.0
+    # Function filter isolates RES.
+    res = await db.aggregate(since=0.0, function="RES")
+    assert res.count == 1 and res.mean == 100.0
+
+
 async def test_operations_require_connection(tmp_path: Path) -> None:
     database = Database(str(tmp_path / "x.sqlite3"))
     with pytest.raises(RuntimeError, match="not connected"):

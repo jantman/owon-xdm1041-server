@@ -28,3 +28,18 @@ class Reading:
             value=measurement.value,
             unit=measurement.unit,
         )
+
+
+@dataclass(frozen=True)
+class Aggregate:
+    """Summary statistics over a set of readings within a time window.
+
+    All value fields are ``None`` when the window held no readings (``count == 0``).
+    """
+
+    count: int
+    mean: float | None
+    min: float | None
+    max: float | None
+    first_ts: float | None
+    last_ts: float | None

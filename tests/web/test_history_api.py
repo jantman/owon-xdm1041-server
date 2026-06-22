@@ -64,6 +64,59 @@ def test_history_disabled_without_database() -> None:
         assert client.get("/api/history").status_code == 503
 
 
+def test_measurement_persists_reading(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "m.sqlite3")
+    with _client(db_path) as client:
+        client.get("/api/measurement")
+        client.get("/api/measurement")
+        rows = client.get("/api/history").json()
+        assert len(rows) >= 2
+        assert all(r["function"] == "VOLT" for r in rows)
+
+
+def test_smoothed_returns_window_mean(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "s.sqlite3")
+    with _client(db_path) as client:
+        body = client.get("/api/measurement/smoothed", params={"seconds": 60}).json()
+        assert body["function"] == "VOLT"
+        assert body["unit"] == "V"
+        assert body["samples"] >= 1
+        assert isinstance(body["value"], float)
+        assert body["window_seconds"] == 60
+
+
+def test_smoothed_rejects_nonpositive_window(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "s.sqlite3")
+    with _client(db_path) as client:
+        assert client.get("/api/measurement/smoothed", params={"seconds": 0}).status_code == 422
+
+
+def test_smoothed_disabled_without_database() -> None:
+    with _client(None) as client:
+        assert client.get("/api/measurement/smoothed").status_code == 503
+
+
+def test_status_combines_value_state_and_smoothed(tmp_path: Path) -> None:
+    db_path = str(tmp_path / "st.sqlite3")
+    with _client(db_path) as client:
+        body = client.get("/api/status").json()
+        assert body["function"] == "VOLT"
+        assert body["unit"] == "V"
+        assert isinstance(body["value"], float)
+        assert body["state"]["function"] == "VOLT_DC"
+        assert body["smoothed"]["samples"] >= 1
+        assert isinstance(body["smoothed"]["value"], float)
+
+
+def test_status_without_database_has_empty_smoothing() -> None:
+    with _client(None) as client:
+        body = client.get("/api/status").json()
+        assert isinstance(body["value"], float)
+        assert body["state"]["function"] == "VOLT_DC"
+        assert body["smoothed"]["samples"] == 0
+        assert body["smoothed"]["value"] is None
+
+
 async def test_recording_while_watching(tmp_path: Path) -> None:
     db = Database(str(tmp_path / "live.sqlite3"))
     await db.connect()

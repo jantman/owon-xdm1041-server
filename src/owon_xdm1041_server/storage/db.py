@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import aiosqlite
 
-from ..models import Reading
+from ..models import Aggregate, Reading
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS readings (
@@ -94,6 +94,50 @@ class Database:
         ]
         readings.reverse()
         return readings
+
+    async def aggregate(
+        self,
+        *,
+        since: float | None = None,
+        until: float | None = None,
+        function: str | None = None,
+    ) -> Aggregate:
+        """Summarise readings matching the filters into an :class:`Aggregate`.
+
+        ``function`` is matched against the stored device string (e.g. ``VOLT``),
+        the same way :meth:`history` filters. When no rows match, the returned
+        aggregate has ``count == 0`` and ``None`` value fields.
+        """
+        clauses: list[str] = []
+        params: list[object] = []
+        if since is not None:
+            clauses.append("ts >= ?")
+            params.append(since)
+        if until is not None:
+            clauses.append("ts <= ?")
+            params.append(until)
+        if function is not None:
+            clauses.append("function = ?")
+            params.append(function)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        query = (
+            "SELECT COUNT(*) AS n, AVG(value) AS mean, MIN(value) AS lo, "
+            "MAX(value) AS hi, MIN(ts) AS first_ts, MAX(ts) AS last_ts "
+            f"FROM readings {where}"
+        )
+        async with self._db.execute(query, params) as cursor:
+            row = await cursor.fetchone()
+        count = int(row["n"]) if row is not None else 0
+        if count == 0:
+            return Aggregate(count=0, mean=None, min=None, max=None, first_ts=None, last_ts=None)
+        return Aggregate(
+            count=count,
+            mean=row["mean"],
+            min=row["lo"],
+            max=row["hi"],
+            first_ts=row["first_ts"],
+            last_ts=row["last_ts"],
+        )
 
     async def count(self) -> int:
         """Total number of stored readings."""

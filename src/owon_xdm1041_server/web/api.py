@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from ..device.commands import Function, Rate
 from ..device.driver import Driver
+from ..models import Aggregate, Reading
 from ..storage.db import Database
 from .poller import Poller
 
@@ -34,6 +35,25 @@ class StateOut(BaseModel):
     rate: str
     auto_range: bool
     range: str | None
+
+
+class SmoothedOut(BaseModel):
+    function: str
+    unit: str
+    value: float | None
+    samples: int
+    window_seconds: float
+    min: float | None
+    max: float | None
+
+
+class StatusOut(BaseModel):
+    timestamp: float
+    function: str
+    value: float
+    unit: str
+    state: StateOut
+    smoothed: SmoothedOut
 
 
 class FunctionOption(BaseModel):
@@ -77,6 +97,30 @@ def get_database(request: Request) -> Database:
     return database
 
 
+def _optional_database(request: Request) -> Database | None:
+    database: Database | None = request.app.state.db
+    return database
+
+
+async def _take_reading(driver: Driver, database: Database | None) -> Reading:
+    """Take a fresh on-demand reading and persist it when storage is available.
+
+    Persisting these reads means an HTTP client that polls ``/api/status`` or
+    ``/api/measurement`` keeps feeding history, so the smoothing window has data
+    even when no ``/ws/live`` client is driving the poller.
+    """
+    m = await driver.read_measurement()
+    reading = Reading.from_measurement(m, time.time())
+    if database is not None:
+        await database.insert_reading(reading)
+    return reading
+
+
+def _validate_seconds(seconds: float) -> None:
+    if seconds <= 0:
+        raise HTTPException(status_code=422, detail="seconds must be positive")
+
+
 def _parse_function(name: str) -> Function:
     try:
         return Function[name]
@@ -118,9 +162,62 @@ async def state(request: Request) -> StateOut:
 
 @router.get("/api/measurement")
 async def measurement(request: Request) -> MeasurementOut:
-    m = await get_driver(request).read_measurement()
+    reading = await _take_reading(get_driver(request), _optional_database(request))
     return MeasurementOut(
-        timestamp=time.time(), function=m.function.value, value=m.value, unit=m.unit
+        timestamp=reading.timestamp,
+        function=reading.function,
+        value=reading.value,
+        unit=reading.unit,
+    )
+
+
+@router.get("/api/measurement/smoothed")
+async def measurement_smoothed(
+    request: Request, seconds: float = 60.0, function: str | None = None
+) -> SmoothedOut:
+    _validate_seconds(seconds)
+    database = get_database(request)
+    reading = await _take_reading(get_driver(request), database)
+    func_value = _parse_function(function).value if function is not None else reading.function
+    agg = await database.aggregate(since=reading.timestamp - seconds, function=func_value)
+    return SmoothedOut(
+        function=func_value,
+        unit=reading.unit,
+        value=agg.mean,
+        samples=agg.count,
+        window_seconds=seconds,
+        min=agg.min,
+        max=agg.max,
+    )
+
+
+@router.get("/api/status")
+async def status(request: Request, seconds: float = 60.0) -> StatusOut:
+    _validate_seconds(seconds)
+    driver = get_driver(request)
+    database = _optional_database(request)
+    reading = await _take_reading(driver, database)
+    state = await _read_state(driver)
+    if database is not None:
+        agg = await database.aggregate(since=reading.timestamp - seconds, function=reading.function)
+    else:
+        agg = Aggregate(count=0, mean=None, min=None, max=None, first_ts=None, last_ts=None)
+    smoothed = SmoothedOut(
+        function=reading.function,
+        unit=reading.unit,
+        value=agg.mean,
+        samples=agg.count,
+        window_seconds=seconds,
+        min=agg.min,
+        max=agg.max,
+    )
+    return StatusOut(
+        timestamp=reading.timestamp,
+        function=reading.function,
+        value=reading.value,
+        unit=reading.unit,
+        state=state,
+        smoothed=smoothed,
     )
 
 

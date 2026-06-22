@@ -60,6 +60,31 @@ owon-xdm1041-server probe --mock          # identify + one reading
 curl http://localhost:8080/api/state
 ```
 
+### HTTP API
+
+For HTTP clients (e.g. Home Assistant), a single poll of `/api/status` returns the
+current value, mode, configuration, and a time-smoothed value together:
+
+```bash
+curl 'http://localhost:8080/api/status?seconds=60'
+```
+
+```json
+{
+  "timestamp": 1719000000.12, "function": "VOLT", "value": 4.567, "unit": "V",
+  "state": {"function": "VOLT_DC", "rate": "MEDIUM", "auto_range": true, "range": "5V"},
+  "smoothed": {"function": "VOLT", "unit": "V", "value": 4.55, "samples": 12,
+               "window_seconds": 60, "min": 4.51, "max": 4.59}
+}
+```
+
+`smoothed.value` is the mean of recorded readings for the current function over the
+last `seconds` (default 60). The smoothing window is built from persisted history, and
+each call to `/api/status` and `/api/measurement` records its own read — so a client
+that polls regularly keeps the window fresh on its own, with no live viewer needed.
+`GET /api/measurement/smoothed?seconds=60` returns just the smoothed object. (Both need
+persistence enabled; they return 503 otherwise.)
+
 SCPI from Python:
 
 ```python
