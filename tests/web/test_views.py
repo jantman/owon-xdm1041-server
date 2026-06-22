@@ -66,6 +66,26 @@ def test_history_page(client: TestClient) -> None:
     assert "/static/history.js" in resp.text
 
 
+def test_api_docs_page(client: TestClient) -> None:
+    resp = client.get("/api")
+    assert resp.status_code == 200
+    # Documents the key endpoints and points at the machine-readable spec.
+    assert "/api/status" in resp.text
+    assert "/api/measurement/smoothed" in resp.text
+    assert "/ws/live" in resp.text
+    assert "/openapi.json" in resp.text
+
+
+def test_nav_links_to_api_docs(client: TestClient) -> None:
+    assert 'href="/api"' in client.get("/").text
+
+
+def test_openapi_schema_available(client: TestClient) -> None:
+    schema = client.get("/openapi.json").json()
+    assert "/api/status" in schema["paths"]
+    assert "/api/measurement/smoothed" in schema["paths"]
+
+
 def test_static_assets_served(client: TestClient) -> None:
     assert client.get("/static/style.css").status_code == 200
     assert client.get("/static/dashboard.js").status_code == 200

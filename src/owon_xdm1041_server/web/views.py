@@ -85,3 +85,8 @@ async def control_auto_range(request: Request) -> HTMLResponse:
 @html_router.get("/history", response_class=HTMLResponse)
 async def history_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "history.html")
+
+
+@html_router.get("/api", response_class=HTMLResponse)
+async def api_docs_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "api.html")

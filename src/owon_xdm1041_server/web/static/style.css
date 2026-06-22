@@ -79,3 +79,35 @@ button:hover, .button:hover { border-color: var(--accent); }
 
 .history-controls { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
 canvas { background: var(--panel); border-radius: 8px; max-width: 100%; }
+
+/* API docs */
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #0b0f14;
+  color: var(--fg);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  margin: 0.5rem 0 0;
+}
+table.api { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+table.api td { padding: 0.3rem 0.75rem 0.3rem 0; border-bottom: 1px solid #2d333b; }
+.api-endpoint { background: var(--panel); border-radius: 8px; padding: 0.75rem 1rem; margin: 0.75rem 0; }
+.api-endpoint h3 { margin: 0 0 0.4rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.95rem; }
+.api-endpoint p { margin: 0.4rem 0; }
+.api-endpoint .params, .api-endpoint .note { font-size: 0.88rem; color: var(--muted); }
+.method {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  margin-right: 0.4rem;
+  vertical-align: 0.08em;
+}
+.method.get { background: var(--ok); }
+.method.post { background: var(--accent); }
+.method.ws { background: #6a1b9a; }

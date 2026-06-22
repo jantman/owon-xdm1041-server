@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}API — XDM1041{% endblock %}
+{% block content %}
+<h1>API</h1>
+<p class="muted">
+  All endpoints below are served by this process. Paths are relative to this host.
+  Readings are <em>self-describing</em>: each carries the meter's <code>function</code>
+  (device string, e.g. <code>VOLT</code>) and <code>unit</code>, correct even if the
+  front-panel mode changed since the previous call.
+</p>
+
+<h2>Machine-readable spec</h2>
+<p class="muted">
+  This service is FastAPI, so a full OpenAPI schema and interactive docs are always
+  available — point AI agents or codegen at these:
+</p>
+<table class="api">
+  <tr><td><code>GET</code></td><td><a href="/openapi.json">/openapi.json</a></td><td>OpenAPI 3 schema (JSON)</td></tr>
+  <tr><td><code>GET</code></td><td><a href="/docs">/docs</a></td><td>Swagger UI (interactive)</td></tr>
+  <tr><td><code>GET</code></td><td><a href="/redoc">/redoc</a></td><td>ReDoc (reference)</td></tr>
+</table>
+
+<h2>Reading the meter</h2>
+
+<div class="api-endpoint">
+  <h3><span class="method get">GET</span> /api/status</h3>
+  <p>One-call snapshot for HTTP pollers: current value, mode, full config, and a
+     time-smoothed value. Recommended for integrations (e.g. Home Assistant).</p>
+  <p class="params"><strong>Query:</strong> <code>seconds</code> (float, default <code>60</code>) —
+     smoothing window. Must be &gt; 0.</p>
+  <p class="note">Taking the reading also records a sample, so a client that polls
+     <code>/api/status</code> keeps its own smoothing window fresh with no live viewer needed.
+     When persistence is disabled, <code>smoothed.samples</code> is <code>0</code> and
+     <code>smoothed.value</code> is <code>null</code>.</p>
+  {% raw %}<pre>$ curl 'http://HOST/api/status?seconds=60'
+{
+  "timestamp": 1719000000.12, "function": "VOLT", "value": 4.567, "unit": "V",
+  "state": {"function": "VOLT_DC", "rate": "MEDIUM", "auto_range": true, "range": "5V"},
+  "smoothed": {"function": "VOLT", "unit": "V", "value": 4.55, "samples": 12,
+               "window_seconds": 60, "min": 4.51, "max": 4.59}
+}</pre>{% endraw %}
+</div>
+
+<div class="api-endpoint">
+  <h3><span class="method get">GET</span> /api/measurement</h3>
+  <p>A single fresh reading taken on demand. Also records the sample when persistence
+     is enabled.</p>
+  {% raw %}<pre>{"timestamp": 1719000000.12, "function": "VOLT", "value": 4.567, "unit": "V"}</pre>{% endraw %}
+</div>
+
+<div class="api-endpoint">
+  <h3><span class="method get">GET</span> /api/measurement/smoothed</h3>
+  <p>Just the time-smoothed value: the mean of recorded readings for a function over
+     the window, with sample count and min/max. Requires persistence
+     (<code>503</code> otherwise).</p>
+  <p class="params"><strong>Query:</strong>
+     <code>seconds</code> (float, default <code>60</code>, must be &gt; 0);
+     <code>function</code> (optional enum name, e.g. <code>RESISTANCE</code>; defaults to
+     the meter's current function).</p>
+  {% raw %}<pre>$ curl 'http://HOST/api/measurement/smoothed?seconds=30'
+{"function": "VOLT", "unit": "V", "value": 4.55, "samples": 6,
+ "window_seconds": 30, "min": 4.51, "max": 4.59}</pre>{% endraw %}
+</div>
+
+<div class="api-endpoint">
+  <h3><span class="method get">GET</span> /api/state</h3>
+  <p>The meter's current configuration (read through to the device, never cached).</p>
+  {% raw %}<pre>{"function": "VOLT_DC", "rate": "MEDIUM", "auto_range": true, "range": "5V"}</pre>{% endraw %}
+</div>
+
+<div class="api-endpoint">
+  <h3><span class="method get">GET</span> /api/identify</h3>
+  <p>The meter's <code>*IDN?</code> identity string.</p>
+  {% raw %}<pre>{"identity": "OWON,XDM1041,..."}</pre>{% endraw %}
+</div>
+
+<div class="api-endpoint">
+  <h3><span class="method get">GET</span> /api/functions</h3>
+  <p>All selectable measurement functions and their human labels.</p>
+  {% raw %}<pre>[{"name": "VOLT_DC", "label": "DC Voltage"}, {"name": "RESISTANCE", "label": "Resistance"}, ...]</pre>{% endraw %}
+</div>
+
+<div class="api-endpoint">
+  <h3><span class="method get">GET</span> /api/history</h3>
+  <p>Persisted readings, oldest first. History is recorded while a dashboard/WebSocket
+     client is watching, and whenever <code>/api/status</code> or
+     <code>/api/measurement</code> is called. Requires persistence (<code>503</code> otherwise).</p>
+  <p class="params"><strong>Query:</strong>
+     <code>since</code> / <code>until</code> (Unix seconds);
+     <code>function</code> (enum name, e.g. <code>RESISTANCE</code>);
+     <code>limit</code> (int, default <code>1000</code> — most recent N).</p>
+  {% raw %}<pre>[{"timestamp": 1719000000.12, "function": "VOLT", "value": 4.567, "unit": "V"}, ...]</pre>{% endraw %}
+</div>
+
+<h2>Controlling the meter</h2>
+<p class="muted">All control endpoints return the updated <code>state</code> object
+   (same shape as <code>/api/state</code>).</p>
+
+<div class="api-endpoint">
+  <h3><span class="method post">POST</span> /api/function</h3>
+  <p>Switch the active measurement function.</p>
+  <p class="params"><strong>Body (JSON):</strong>
+     <code>function</code> (enum name, required);
+     <code>rtd_type</code> (string, default <code>"KITS90"</code>, for temperature).</p>
+  {% raw %}<pre>$ curl -X POST http://HOST/api/function -H 'Content-Type: application/json' \
+       -d '{"function": "RESISTANCE"}'</pre>{% endraw %}
+</div>
+
+<div class="api-endpoint">
+  <h3><span class="method post">POST</span> /api/rate</h3>
+  <p>Set the measurement rate.</p>
+  <p class="params"><strong>Body (JSON):</strong> <code>rate</code> — one of
+     <code>SLOW</code>, <code>MEDIUM</code>, <code>FAST</code>.</p>
+</div>
+
+<div class="api-endpoint">
+  <h3><span class="method post">POST</span> /api/auto-range</h3>
+  <p>Enable auto-ranging. No body.</p>
+</div>
+
+<h2>Live stream</h2>
+
+<div class="api-endpoint">
+  <h3><span class="method ws">WS</span> /ws/live</h3>
+  <p>WebSocket of live readings, one JSON message per poll interval. Connecting starts
+     the on-demand poller; it stops when the last client disconnects.</p>
+  {% raw %}<pre>{"timestamp": 1719000000.12, "function": "VOLT", "value": 4.567, "unit": "V"}</pre>{% endraw %}
+</div>
+
+<h2>Errors</h2>
+<p class="muted">
+  Unknown function/rate names return <code>422</code>. Endpoints that need stored
+  history (<code>/api/history</code>, <code>/api/measurement/smoothed</code>) return
+  <code>503</code> when persistence is disabled.
+</p>
+{% endblock %}
