@@ -73,6 +73,10 @@ addopts = "--cov=owon_xdm1041_server --cov-report=term-missing --cov-fail-under=
 markers = [
     "hardware: tests that require a real XDM1041 attached (deselected by default)",
 ]
+filterwarnings = [
+    # Starlette's TestClient warns about httpx; test-only and out of our control.
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+]
 # Fail loudly instead of hanging on a stuck transaction (pytest-timeout).
 timeout = 30
 
