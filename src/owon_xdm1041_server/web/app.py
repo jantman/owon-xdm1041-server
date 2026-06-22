@@ -11,12 +11,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from ..device.driver import Driver
 from ..storage.db import Database
 from .api import router
 from .poller import Poller
 from .recorder import Recorder
+from .views import STATIC_DIR, html_router
 
 
 def create_app(driver: Driver, poller: Poller, database: Database | None = None) -> FastAPI:
@@ -42,4 +44,6 @@ def create_app(driver: Driver, poller: Poller, database: Database | None = None)
     app.state.poller = poller
     app.state.db = database
     app.include_router(router)
+    app.include_router(html_router)
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     return app

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}History — XDM1041{% endblock %}
+{% block content %}
+<h1>History</h1>
+<div class="history-controls">
+  <button id="refresh" type="button">Refresh</button>
+  <a id="csv" class="button" download="readings.csv">Download CSV</a>
+</div>
+<canvas id="chart" width="800" height="320"></canvas>
+<p id="empty" class="muted">No data yet — open the dashboard to start recording.</p>
+{% endblock %}
+{% block scripts %}<script src="/static/history.js"></script>{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — XDM1041{% endblock %}
+{% block content %}
+<section class="readout">
+  <div id="status" class="status disconnected">connecting…</div>
+  <div class="value"><span id="value">—</span> <span id="unit"></span></div>
+  <div id="function" class="function">—</div>
+  <p class="muted">Live readings stream while this page is open; the meter is idle otherwise.</p>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/dashboard.js"></script>{% endblock %}

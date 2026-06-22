@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Control — XDM1041{% endblock %}
+{% block content %}
+<h1>Control</h1>
+{% include "_state.html" %}
+
+<form class="control-form" hx-post="/control/function" hx-target="#state" hx-swap="outerHTML">
+  <label for="function">Function</label>
+  <select id="function" name="function">
+    {% for name, label in functions %}
+    <option value="{{ name }}" {% if name == state.function %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit">Set function</button>
+</form>
+
+<form class="control-form" hx-post="/control/rate" hx-target="#state" hx-swap="outerHTML">
+  <label for="rate">Rate</label>
+  <select id="rate" name="rate">
+    {% for name, label in rates %}
+    <option value="{{ name }}" {% if name == state.rate %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit">Set rate</button>
+</form>
+
+<form class="control-form" hx-post="/control/auto-range" hx-target="#state" hx-swap="outerHTML">
+  <button type="submit">Enable auto-range</button>
+</form>
+{% endblock %}

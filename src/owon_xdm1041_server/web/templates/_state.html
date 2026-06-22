@@ -1,0 +1,9 @@
+<div id="state" class="state">
+  <h2>Current state</h2>
+  <dl>
+    <dt>Function</dt><dd>{{ state.function }}</dd>
+    <dt>Rate</dt><dd>{{ state.rate }}</dd>
+    <dt>Auto-range</dt><dd>{{ "on" if state.auto_range else "off" }}</dd>
+    <dt>Range</dt><dd>{{ state.range or "—" }}</dd>
+  </dl>
+</div>
