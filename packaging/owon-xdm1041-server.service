@@ -1,0 +1,42 @@
+# systemd unit for the OWON XDM1041 server.
+#
+# Install (assuming the project is installed in a venv at the path below):
+#   sudo cp packaging/owon-xdm1041-server.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now owon-xdm1041-server
+#
+# Adjust ExecStart, User, and the OWON_* environment to your deployment.
+
+[Unit]
+Description=OWON XDM1041 Server (SCPI passthrough + web UI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/owon-xdm1041-server/.venv/bin/owon-xdm1041-server serve
+Restart=on-failure
+RestartSec=5
+
+# Run as an unprivileged user that is a member of the 'dialout' group so it can
+# open the serial device.
+User=owon
+Group=dialout
+
+# Configuration (see owon_xdm1041_server/config.py for all OWON_* options).
+Environment=OWON_SERIAL_PORT=/dev/owon-xdm1041
+Environment=OWON_SCPI_PORT=5025
+Environment=OWON_WEB_PORT=8080
+Environment=OWON_DATABASE_PATH=/var/lib/owon-xdm1041/readings.sqlite3
+
+# Creates and owns /var/lib/owon-xdm1041 for the SQLite database.
+StateDirectory=owon-xdm1041
+
+# Hardening.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

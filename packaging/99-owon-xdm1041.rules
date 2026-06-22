@@ -1,0 +1,18 @@
+# udev rule: give the XDM1041's USB-serial adapter a stable device path.
+#
+# The meter enumerates as a generic USB-serial adapter, so its /dev/ttyUSB*
+# (or /dev/ttyACM*) number can change between boots or when other adapters are
+# present. This rule creates a fixed /dev/owon-xdm1041 symlink and grants the
+# 'dialout' group access.
+#
+# Install:
+#   sudo cp packaging/99-owon-xdm1041.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# IMPORTANT: set idVendor/idProduct to match YOUR adapter. Find them with:
+#   udevadm info -a -n /dev/ttyUSB0 | grep -E 'idVendor|idProduct|serial'
+# Common XDM1041 adapters include CH340 (1a86:7523) and CP210x (10c4:ea60).
+# If you have several identical adapters, also match ATTRS{serial}=="...".
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="owon-xdm1041", GROUP="dialout", MODE="0660"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="owon-xdm1041", GROUP="dialout", MODE="0660"
