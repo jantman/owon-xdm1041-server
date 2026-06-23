@@ -34,6 +34,10 @@ dev = [
     "mypy>=1.10",
     "types-pyserial>=3.5",
 ]
+docs = [
+    # Used by scripts/screenshot_ui.py to regenerate the README screenshots.
+    "playwright>=1.40",
+]
 
 [project.scripts]
 owon-xdm1041-server = "owon_xdm1041_server.__main__:main"

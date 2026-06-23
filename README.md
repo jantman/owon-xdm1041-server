@@ -15,6 +15,18 @@ meter is kept in LOCAL mode so its front panel stays usable at all times.
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture and rationale.
 
+## Screenshots
+
+The web UI is a live dashboard, a control panel, and recorded history — shown here
+running against the built-in mock meter:
+
+| Dashboard | Control | History |
+| --- | --- | --- |
+| [![Live dashboard](docs/images/dashboard.png)](docs/images/dashboard.png) | [![Control panel](docs/images/control.png)](docs/images/control.png) | [![Recorded history](docs/images/history.png)](docs/images/history.png) |
+
+> Regenerate these with `python scripts/screenshot_ui.py` (see
+> [Development](#development)).
+
 ## Features
 
 - Single owner of the serial port (`DeviceManager`) serialises every command, so
@@ -137,6 +149,22 @@ pytest                    # full suite runs hardware-free against the mock
 
 > The web UI loads HTMX from a CDN. For a fully offline Pi, vendor `htmx.min.js`
 > into `web/static/` and point `base.html` at it.
+
+### Regenerating the screenshots
+
+The README screenshots (`docs/images/*.png`) are produced from the mock meter by a
+headless browser. After any change that alters how the dashboard, control, or
+history pages look, regenerate them and commit the updated PNGs:
+
+```bash
+pip install -e ".[docs]"
+playwright install chromium    # one-time browser download
+python scripts/screenshot_ui.py
+```
+
+The script starts `serve --mock` on a private port, drives Chromium through each
+page (briefly streaming live readings so the history chart has data), and writes
+the PNGs. No hardware and no manual setup required.
 
 ## Credits
 
